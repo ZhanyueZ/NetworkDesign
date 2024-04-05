@@ -95,11 +95,89 @@ def main():
     numOfNodes = inputValue[0]
     allReliabilty = inputValue[1]
     allCost = inputValue[2]
+    feasible = False
     sortedEdgesByReli = sortEdges(numOfNodes, allReliabilty, allCost)
     MST = findMST(numOfNodes, sortedEdgesByReli)
     curR = findTotalReliabilityST(MST)
     curC = findTotalCostST(MST)
-    
+    print("total cost: %s, total reliability: %s" % (curC, curR))
+    curEdges = MST.copy()
+    remainingEdges = []                          # list of edges that can be potentially enhanced
+    for edge in sortedEdgesByReli:
+        if edge not in MST:
+            remainingEdges.append(edge)
+    while curC < costGoal:
+        rUnadded = [0]* len(remainingEdges)
+        cUnadded = [0]* len(remainingEdges)
+        ratio = [0]*len(remainingEdges)
+        for i in range(len(remainingEdges)):
+            e = remainingEdges[i]
+            cloneList = curEdges.copy()
+            cloneList.append(e)
+            perfectList = []
+            rUnadded[i] = findGraphReliability(cloneList,perfectList,len(MST),numOfNodes)
+            cUnadded[i] = findTotalCostST(cloneList)
+            ratio[i] = 1
+            if(cUnadded[i] > costGoal):
+                ratio[i] = -1
+        feasible = True
+
+    print("Max achievable Reliability after improvements:")
+
+
+
+
+
+# recursively find the reliability
+# input: Edges: all Edges in the graph.
+# input: numOfEdgesMST : number of edges in MST
+# input: PerfectEdges: Edges that are reliable under the assumption.
+def findGraphReliability(Edges,PerfectEdges,numOfEdgesMST,numNodes):
+    totalReliabilty = 0
+    if len(Edges) + len(PerfectEdges) == numOfEdgesMST and isConnect(Edges,PerfectEdges,numNodes):
+        return findTotalReliabilityST(Edges)
+    else:
+        if not isConnect(Edges,PerfectEdges,numNodes):
+            return 0
+        if len(Edges)>0:
+            e = Edges[0]
+            clonedEdges = Edges.copy()
+            clonedEdges.remove(e)
+            totalReliabilty += (1-e.get_reliability()) * findGraphReliability(clonedEdges,PerfectEdges,numOfEdgesMST,numNodes)
+            PerfectEdges.append(e)
+            totalReliabilty += e.get_reliability() * findGraphReliability(clonedEdges,PerfectEdges,numOfEdgesMST,numNodes)
+            return totalReliabilty
+        else:
+            return 1
+
+
+def isConnect(Edges,PerfectEdges,numOfNodes):
+   connectivity = [0] * numOfNodes  # initialize as not connected
+   connectivity[0] = 1
+   redo = True
+   while(redo):
+       redo = False
+       for edge in Edges:
+           if connectivity[edge.get_cityA()] != connectivity[edge.get_cityB()]:
+               connectivity[edge.get_cityA()] = 1
+               connectivity[edge.get_cityB()] = 1
+               redo = True
+       for edge in PerfectEdges:
+           if connectivity[edge.get_cityA()] != connectivity[edge.get_cityB()]:
+               connectivity[edge.get_cityA()] = 1
+               connectivity[edge.get_cityB()] = 1
+               redo = True
+
+   if 0 in connectivity:
+       return False
+   else:
+       return True
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
