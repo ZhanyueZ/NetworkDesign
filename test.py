@@ -114,15 +114,23 @@ def main():
             e = remainingEdges[i]
             cloneList = curEdges.copy()
             cloneList.append(e)
+            cUnadded[i] = findTotalCostST(cloneList)
+            if (cUnadded[i] > costGoal):
+                ratio[i] = -1
+                continue
             perfectList = []
             rUnadded[i] = findGraphReliability(cloneList,perfectList,len(MST),numOfNodes)
-            cUnadded[i] = findTotalCostST(cloneList)
-            ratio[i] = 1
-            if(cUnadded[i] > costGoal):
-                ratio[i] = -1
-        feasible = True
-
-    print("Max achievable Reliability after improvements:")
+            ratio[i] = rUnadded[i] / cUnadded[i]
+        for i in ratio:
+            if i > 0:
+                feasible = True
+        maxReliability = max(rUnadded)
+        maxIndex = max(enumerate(rUnadded),key=lambda x:[1])[0]
+        curEdges.append(remainingEdges[maxIndex])
+        curC = findTotalCostST(curEdges)
+        print("One edge found and added. Current Reliability: %s, Current Cost: %s" % (maxReliability,curC))
+        remainingEdges.remove(remainingEdges[maxIndex])
+    print("No more improvements.")
 
 
 
