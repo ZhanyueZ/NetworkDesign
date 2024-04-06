@@ -38,7 +38,7 @@ def sortEdges(nodeNum, reliabilities, costs):
             temp.set_cost(costs[index])
             Edges.append(temp)
             index = index + 1
-    Edges.sort(key=lambda x: x.reliability, reverse=True)
+    Edges.sort(key=lambda x: (x.reliability,-x.cost), reverse=True)
     return Edges
 
 def sortEdgesByCost(nodeNum, reliabilities, costs):
@@ -51,7 +51,7 @@ def sortEdgesByCost(nodeNum, reliabilities, costs):
             temp.set_cost(costs[index])
             Edges.append(temp)
             index = index + 1
-    Edges.sort(key=lambda x: x.cost, reverse=False)
+    Edges.sort(key=lambda x: (x.cost,-x.reliability), reverse=False)
     return Edges
 
 def findMST(nodeNum, sortedEdges):
