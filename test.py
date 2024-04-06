@@ -1,12 +1,14 @@
 from Edge import Edge
+import Brute
 
+input_file_name = '4_city.txt'
 
 def readInputFile():
-    lines = [line for line in open('5_city.txt') if not line.startswith('#') and len(line.strip())]
+    lines = [line for line in open(input_file_name) if not line.startswith('#') and len(line.strip())]
     numOfNodes = int(lines[0].split("\n")[0])
     reliability = []
     cost = []
-    with open('5_city.txt', 'r') as file:
+    with open(input_file_name, 'r') as file:
         lines = file.readlines()
     for line in lines[8:8 + numOfNodes - 1 + numOfNodes - 2]:
         if line.startswith('#') or line.strip() == "":
@@ -38,7 +40,7 @@ def sortEdges(nodeNum, reliabilities, costs):
             temp.set_cost(costs[index])
             Edges.append(temp)
             index = index + 1
-    Edges.sort(key=lambda x: (x.reliability,-x.cost), reverse=True)
+    Edges.sort(key=lambda x: (x.reliability, -x.cost), reverse=True)
     return Edges
 
 def sortEdgesByCost(nodeNum, reliabilities, costs):
@@ -51,7 +53,7 @@ def sortEdgesByCost(nodeNum, reliabilities, costs):
             temp.set_cost(costs[index])
             Edges.append(temp)
             index = index + 1
-    Edges.sort(key=lambda x: (x.cost,-x.reliability), reverse=False)
+    Edges.sort(key=lambda x: (x.cost, -x.reliability), reverse=False)
     return Edges
 
 def findMST(nodeNum, sortedEdges):
@@ -104,104 +106,141 @@ def main():
     if method != 1 and method != 2:
         print("Invalid method input!")
         return
-
     inputValue = readInputFile()
     numOfNodes = inputValue[0]
     allReliabilty = inputValue[1]
     allCost = inputValue[2]
     feasible = False
-
     sortedEdgesByReli = sortEdges(numOfNodes, allReliabilty, allCost)
-    sortEdgesCost = sortEdgesByCost(numOfNodes,allReliabilty, allCost)
+    sortEdgesCost = sortEdgesByCost(numOfNodes, allReliabilty, allCost)
+    if method == 2:
+            MST_COST = findMST(numOfNodes,sortEdgesCost)            #sort by cost from low to high
+            MST = findMST(numOfNodes, sortedEdgesByReli)
 
-    MST_COST = findMST(numOfNodes,sortEdgesCost)            #sort by cost from low to high
-    MST = findMST(numOfNodes, sortedEdgesByReli)
+            curR = findTotalReliabilityST(MST)
+            curR_Cost = findTotalReliabilityST(MST_COST)
 
-    curR = findTotalReliabilityST(MST)
-    curR_Cost = findTotalReliabilityST(MST_COST)
+            curC = findTotalCostST(MST)
+            curC_Cost = findTotalCostST(MST_COST)
 
-    curC = findTotalCostST(MST)
-    curC_Cost = findTotalCostST(MST_COST)
+            # print("total cost: %s, total reliability: %s when prioritize reliability"  % (curC, curR))
+            # print("total cost: %s, total reliability: %s when prioritize cost" % (curC_Cost, curR_Cost))
 
-    print("total cost: %s, total reliability: %s when prioritize reliability"  % (curC, curR))
-    print("total cost: %s, total reliability: %s when prioritize cost" % (curC_Cost, curR_Cost))
+            curEdges = MST.copy()
+            curEdges_COST = MST_COST.copy()
 
-    curEdges = MST.copy()
-    curEdges_COST = MST_COST.copy()
+            remainingEdges = []  # list of edges that can be potentially enhanced
+            remainingEdges_COST = []
 
-    remainingEdges = []  # list of edges that can be potentially enhanced
-    remainingEdges_COST = []
+            max_reliability_by_reli = 0
+            max_reliability_by_cost = 0
 
-    max_reliability_by_reli = 0
-    max_reliability_by_cost = 0
+            for edge in sortedEdgesByReli:
+                if edge not in MST:
+                    remainingEdges.append(edge)
+                if edge not in MST_COST:
+                    remainingEdges_COST.append(edge)
 
-    for edge in sortedEdgesByReli:
-        if edge not in MST:
-            remainingEdges.append(edge)
-        if edge not in MST_COST:
-            remainingEdges_COST.append(edge)
+            while costGoal - curC >= min([edge.cost for edge in remainingEdges]):
+                rUnadded = [0] * len(remainingEdges)
+                cUnadded = [0] * len(remainingEdges)
+                ratio = [0] * len(remainingEdges)
+                haveSpace = [0] * len(remainingEdges)
+                for i in range(len(remainingEdges)):
+                    e = remainingEdges[i]
+                    cloneList = curEdges.copy()
+                    cloneList.append(e)
+                    cUnadded[i] = findTotalCostST(cloneList)
+                    if cUnadded[i] > costGoal:
+                        ratio[i] = -1
+                        continue
+                    perfectList = []
+                    rUnadded[i] = findGraphReliability(cloneList, perfectList, len(MST), numOfNodes)
+                    ratio[i] = rUnadded[i] / cUnadded[i]
+                    remainingEdgesCopy = remainingEdges.copy()
+                    remainingEdgesCopy.remove(e)
+                    haveSpace[i] = 1 if curC - findTotalCostST(cloneList) >= min([edge.cost for edge in remainingEdgesCopy]) else 0
+                for i in ratio:
+                    if i > 0:
+                        feasible = True
+                maxRatio = max(ratio)
+                maxReliability = max(rUnadded)
+                if ratio.index(maxRatio) == rUnadded.index(maxReliability):
+                    maxIndex = ratio.index(maxRatio)
+                else:
+                    if haveSpace[rUnadded.index(maxReliability)] == 1:
+                        maxIndex = rUnadded.index(maxReliability)
+                    elif haveSpace[rUnadded.index(maxReliability)] == 0 and haveSpace[ratio.index(maxRatio)] == 1:
+                        maxIndex = ratio.index(maxRatio)
+                    else:
+                        maxIndex = rUnadded.index(maxReliability)
+                maxReliability = rUnadded[maxIndex]
+                max_reliability_by_reli = max(curR,maxReliability)
+                curEdges.append(remainingEdges[maxIndex])
+                curC = findTotalCostST(curEdges)
+               # print("One edge found and added. Current Reliability: %s, Current Cost: %s" % (maxReliability, curC))
+                remainingEdges.remove(remainingEdges[maxIndex])
 
-    while costGoal - curC >= min([edge.cost for edge in remainingEdges]):
-        rUnadded = [0] * len(remainingEdges)
-        cUnadded = [0] * len(remainingEdges)
-        ratio = [0] * len(remainingEdges)
-        for i in range(len(remainingEdges)):
-            e = remainingEdges[i]
-            cloneList = curEdges.copy()
-            cloneList.append(e)
-            cUnadded[i] = findTotalCostST(cloneList)
-            if cUnadded[i] > costGoal:
-                ratio[i] = -1
-                continue
-            perfectList = []
-            rUnadded[i] = findGraphReliability(cloneList, perfectList, len(MST), numOfNodes)
-            ratio[i] = rUnadded[i] / cUnadded[i]
-        for i in ratio:
-            if i > 0:
-                feasible = True
-        maxReliability = max(rUnadded)
-        max_reliability_by_reli = max(curR,maxReliability)
-        maxIndex = rUnadded.index(max(rUnadded))
-        curEdges.append(remainingEdges[maxIndex])
-        curC = findTotalCostST(curEdges)
-       # print("One edge found and added. Current Reliability: %s, Current Cost: %s" % (maxReliability, curC))
-        remainingEdges.remove(remainingEdges[maxIndex])
+            while costGoal - curC_Cost >= min([edge.cost for edge in remainingEdges_COST]):
+                rUnadded_COST = [0] * len(remainingEdges_COST)
+                cUnadded_COST = [0] * len(remainingEdges_COST)
+                ratio = [0] * len(remainingEdges_COST)
+                haveSpace = [0] * len(remainingEdges_COST)
+                for i in range(len(remainingEdges_COST)):
+                    e = remainingEdges_COST[i]
+                    cloneList = curEdges_COST.copy()
+                    cloneList.append(e)
+                    cUnadded_COST[i] = findTotalCostST(cloneList)
+                    if cUnadded_COST[i] > costGoal:
+                        ratio[i] = -1
+                        continue
+                    perfectList = []
+                    rUnadded_COST[i] = findGraphReliability(cloneList, perfectList, len(MST_COST), numOfNodes)
+                    ratio[i] = rUnadded_COST[i] / cUnadded_COST[i]
+                    remainingEdgesCopy = remainingEdges_COST.copy()
+                    remainingEdgesCopy.remove(e)
+                    haveSpace[i] = 1 if curC - findTotalCostST(cloneList) >= min([edge.cost for edge in remainingEdgesCopy]) else 0
+                for i in ratio:
+                    if i > 0:
+                        feasible = True
+                maxRatio = max(ratio)
+                maxReliability = max(rUnadded_COST)
+                if ratio.index(maxRatio) == rUnadded_COST.index(maxReliability):
+                    maxIndex = ratio.index(maxRatio)
+                else:
+                    if haveSpace[rUnadded_COST.index(maxReliability)] == 1:
+                        maxIndex = rUnadded_COST.index(maxReliability)
+                    elif haveSpace[rUnadded_COST.index(maxReliability)] == 0 and haveSpace[ratio.index(maxRatio)] == 1:
+                        maxIndex = ratio.index(maxRatio)
+                    else:
+                        maxIndex = rUnadded_COST.index(maxReliability)
+                maxReliability = rUnadded_COST[maxIndex]
+                max_reliability_by_cost = max(curR_Cost,maxReliability)
+                curEdges_COST.append(remainingEdges_COST[maxIndex])
+                curC_Cost = findTotalCostST(curEdges_COST)
+                #print("One edge found and added. Current Reliability: %s, Current Cost: %s" % (maxReliability, curC_Cost))
+                remainingEdges_COST.remove(remainingEdges_COST[maxIndex])
 
-    while costGoal - curC_Cost >= min([edge.cost for edge in remainingEdges_COST]):
-        rUnadded_COST = [0] * len(remainingEdges_COST)
-        cUnadded_COST = [0] * len(remainingEdges_COST)
-        ratio = [0] * len(remainingEdges_COST)
-        for i in range(len(remainingEdges_COST)):
-            e = remainingEdges_COST[i]
-            cloneList = curEdges_COST.copy()
-            cloneList.append(e)
-            cUnadded_COST[i] = findTotalCostST(cloneList)
-            if cUnadded_COST[i] > costGoal:
-                ratio[i] = -1
-                continue
-            perfectList = []
-            rUnadded_COST[i] = findGraphReliability(cloneList, perfectList, len(MST_COST), numOfNodes)
-            ratio[i] = rUnadded_COST[i] / cUnadded_COST[i]
-        for i in ratio:
-            if i > 0:
-                feasible = True
-        maxReliability = max(rUnadded_COST)
-        max_reliability_by_cost = max(curR_Cost,maxReliability)
-        maxIndex = rUnadded_COST.index(max(rUnadded_COST))
-        curEdges_COST.append(remainingEdges_COST[maxIndex])
-        curC_Cost = findTotalCostST(curEdges_COST)
-        #print("One edge found and added. Current Reliability: %s, Current Cost: %s" % (maxReliability, curC_Cost))
-        remainingEdges_COST.remove(remainingEdges_COST[maxIndex])
+            max_reliability_by_reli = max(curR,max_reliability_by_reli)
+            max_reliability_by_cost = max(curR_Cost,max_reliability_by_cost)
 
-    max_reliability_by_reli = max(curR,max_reliability_by_reli)
-    max_reliability_by_cost = max(curR_Cost,max_reliability_by_cost)
+            if max_reliability_by_reli > max_reliability_by_cost:
+                print("Under cost limit of %s, max reliability is %s" % (costGoal,max_reliability_by_reli))
+                curEdges.append(max_reliability_by_reli)
+                Brute.draw(curEdges,numOfNodes,costGoal)
+            else:
+                print("Under cost limit of %s, max reliability is %s" % (costGoal,max_reliability_by_cost))
+                curEdges_COST.append(max_reliability_by_cost)
+                Brute.draw(curEdges_COST,numOfNodes,costGoal)
+            print("No more improvements.")
 
-    if max_reliability_by_reli > max_reliability_by_cost:
-        print("Maximum Reliability is %s" % max_reliability_by_reli)
-    else:
-        print("Maximum Reliability is %s" % max_reliability_by_cost)
+    elif method == 1:
+        allCombination = Brute.findCombination(sortedEdgesByReli, numOfNodes, costGoal)
+        exhaustive_result = Brute.exhaustive(allCombination, numOfNodes)
+        print("Under cost limit of %s, max reliability is %s" % (costGoal,exhaustive_result[-1]))
+        Brute.draw(exhaustive_result, numOfNodes, costGoal)
 
-    print("No more improvements.")
+
 
 
 # recursively find the reliability
@@ -210,7 +249,7 @@ def main():
 # input: PerfectEdges: Edges that are reliable under the assumption.
 def findGraphReliability(Edges, PerfectEdges, numOfEdgesMST, numNodes):
     totalReliabilty = 0
-    sortedEdges = sorted(Edges, key=lambda x: x.get_reliability(), reverse=True)
+    sortedEdges = sorted(Edges, key=lambda x: x.get_cityA(), reverse=True)
     if len(sortedEdges) + len(PerfectEdges) == numOfEdgesMST and isConnect(sortedEdges, PerfectEdges, numNodes):
         return findTotalReliabilityST(Edges)
     else:
