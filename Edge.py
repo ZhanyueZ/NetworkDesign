@@ -13,7 +13,8 @@ class Edge:
 
     def get_reliability(self):
         return self.reliability
-
+    def __eq__(self, other):
+        return self.cityA == other.cityA and self.cityB == other.cityB
     def set_reliability(self, reliability):
         self.reliability = reliability
 
