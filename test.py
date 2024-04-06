@@ -2,11 +2,11 @@ from Edge import Edge
 
 
 def readInputFile():
-    lines = [line for line in open('input.txt') if not line.startswith('#') and len(line.strip())]
+    lines = [line for line in open('5_city.txt') if not line.startswith('#') and len(line.strip())]
     numOfNodes = int(lines[0].split("\n")[0])
     reliability = []
     cost = []
-    with open('input.txt', 'r') as file:
+    with open('5_city.txt', 'r') as file:
         lines = file.readlines()
     for line in lines[8:8 + numOfNodes - 1 + numOfNodes - 2]:
         if line.startswith('#') or line.strip() == "":
@@ -141,7 +141,7 @@ def main():
         if edge not in MST_COST:
             remainingEdges_COST.append(edge)
 
-    while costGoal - curC > min([edge.cost for edge in remainingEdges]):
+    while costGoal - curC >= min([edge.cost for edge in remainingEdges]):
         rUnadded = [0] * len(remainingEdges)
         cUnadded = [0] * len(remainingEdges)
         ratio = [0] * len(remainingEdges)
@@ -167,7 +167,7 @@ def main():
        # print("One edge found and added. Current Reliability: %s, Current Cost: %s" % (maxReliability, curC))
         remainingEdges.remove(remainingEdges[maxIndex])
 
-    while costGoal - curC_Cost > min([edge.cost for edge in remainingEdges_COST]):
+    while costGoal - curC_Cost >= min([edge.cost for edge in remainingEdges_COST]):
         rUnadded_COST = [0] * len(remainingEdges_COST)
         cUnadded_COST = [0] * len(remainingEdges_COST)
         ratio = [0] * len(remainingEdges_COST)
@@ -210,14 +210,15 @@ def main():
 # input: PerfectEdges: Edges that are reliable under the assumption.
 def findGraphReliability(Edges, PerfectEdges, numOfEdgesMST, numNodes):
     totalReliabilty = 0
-    if len(Edges) + len(PerfectEdges) == numOfEdgesMST and isConnect(Edges, PerfectEdges, numNodes):
+    sortedEdges = sorted(Edges, key=lambda x: x.get_reliability(), reverse=True)
+    if len(sortedEdges) + len(PerfectEdges) == numOfEdgesMST and isConnect(sortedEdges, PerfectEdges, numNodes):
         return findTotalReliabilityST(Edges)
     else:
-        if not isConnect(Edges, PerfectEdges, numNodes):
+        if not isConnect(sortedEdges, PerfectEdges, numNodes):
             return 0
-        if len(Edges) > 0:
-            e = Edges[0]
-            clonedEdges = Edges.copy()
+        if len(sortedEdges) > 0:
+            e = sortedEdges[0]
+            clonedEdges = sortedEdges.copy()
             clonedEdges.remove(e)
             totalReliabilty += (1 - e.get_reliability()) * findGraphReliability(clonedEdges, PerfectEdges,
                                                                                 numOfEdgesMST, numNodes)
