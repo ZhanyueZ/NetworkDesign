@@ -7,7 +7,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from Edge import Edge
 
-tester = './tester/8_1.txt'
+tester = './tester/6_city.txt'
 
 
 # parse input text file
@@ -69,7 +69,6 @@ def kruskal(num_node, sorted_edges):
         if pu != pv:
             parent[pu] = pv
     nodes, e = set(), []
-    sorted_edges.sort(key=lambda x: x.reliability, reverse=True)
     parent = {i: i for i in range(num_node)}    # initialize parent dictionary for union-find
     for edge in sorted_edges:
         if len(e) == num_node - 1:
