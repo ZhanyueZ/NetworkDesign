@@ -3,7 +3,7 @@ import numpy as np  # TO BE OPTIMIZED: use numpy for faster array operations
 from Edge import Edge
 import Brute
 
-tester = './tester/6_city.txt'
+tester = './tester/4_city.txt'
 
 
 # parse input text file
@@ -43,7 +43,7 @@ def sort_edge(num_node, reliabilities, costs, *args):
     if 'reliability' in args:
         edges.sort(key=lambda x: (x.reliability, -x.cost), reverse=True)
     elif 'cost' in args:
-        edges.sort(key=lambda x: (x.cost, -x.reliability))
+        edges.sort(key=lambda x: (x.cost, -x.reliability), reverse=False)
     else:
         raise ValueError("Valid sorting parameter: 'reliability' or 'cost'.")
     return edges
@@ -63,7 +63,7 @@ def kruskal(num_node, sortedEdges, cost_limit):
         if pu != pv:
             parent[pu] = pv
 
-    sortedEdges.sort(key=lambda x: x.reliability, reverse=True)
+    #sortedEdges.sort(key=lambda x: x.reliability, reverse=True)
     parent = {i: i for i in range(num_node)}  # initialize parent dictionary for union-find
     for edge in sortedEdges:
         if len(edges) == num_node - 1:
