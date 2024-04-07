@@ -3,7 +3,7 @@ import numpy as np  # TO BE OPTIMIZED: use numpy for faster array operations
 from Edge import Edge
 import Brute
 
-tester = './tester/6_3.txt'
+tester = './tester/6_city.txt'
 
 
 # parse input text file
@@ -121,12 +121,11 @@ def process_edge(remaining_edges, cur_edges, cur_c, cur_r, cost_limit, num_node)
                 ratio[i] = -1
                 continue
             perfect_list = []
-            r_unadded[i] = graph_reliability(clone_list, perfect_list, len(cur_edges), num_node)
+            r_unadded[i] = graph_reliability(clone_list, perfect_list, num_node-1, num_node)
             ratio[i] = r_unadded[i] / c_unadded[i]
             remaining_edges_copy = remaining_edges.copy()
             remaining_edges_copy.remove(e)
-            have_space[i] = 1 if cur_c - total_cost(clone_list) >= min(
-                [edge.cost for edge in remaining_edges_copy]) else 0
+            have_space[i] = 1 if cost_limit - total_cost(clone_list) >= min([edge.cost for edge in remaining_edges_copy]) else 0
         for i in ratio:
             if i > 0:
                 feasible = True
@@ -216,7 +215,7 @@ def graph_reliability(Edges, PerfectEdges, numOfEdgesMST, num_node):
     RETURNS: reliability of the graph
     """
     r = 0
-    sortedEdges = sorted(Edges, key=lambda x: x.get_cityA(), reverse=True)
+    sortedEdges = sorted(Edges, key=lambda x: x.reliability, reverse=True)
     if len(sortedEdges) + len(PerfectEdges) == numOfEdgesMST and connected(sortedEdges, PerfectEdges, num_node):
         return total_reliability(Edges)
     else:
