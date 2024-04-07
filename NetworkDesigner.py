@@ -18,7 +18,7 @@ def read():
                 break
         if num_node is None:
             raise ValueError("NUMBER OF NODES NOT SPECIFIED IN THE PROVIDED FILE.")
-        reliability_lines = lines[8 : 5 + 2 * num_node]
+        reliability_lines = lines[8: 5 + 2 * num_node]
         for line in reliability_lines:
             if not line.startswith('#') and line.strip():
                 reliability.extend(map(float, line.strip().split()))
@@ -64,7 +64,7 @@ def kruskal(num_node, sortedEdges, cost_limit):
             parent[pu] = pv
 
     sortedEdges.sort(key=lambda x: x.reliability, reverse=True)
-    parent = {i: i for i in range(num_node)}    # initialize parent dictionary for union-find
+    parent = {i: i for i in range(num_node)}  # initialize parent dictionary for union-find
     for edge in sortedEdges:
         if len(edges) == num_node - 1:
             break
@@ -105,10 +105,10 @@ def total_cost(path):
     return c
 
 
-# DOUBLE CHECK: method refined by ChatGPT
 def process_edge(remaining_edges, cur_edges, cur_c, cur_r, cost_limit, num_node):
     max_reliability = 0
     feasible = False
+    if total_cost(cur_edges) <= cost_limit: feasible = True
     while cost_limit - cur_c >= min([edge.cost for edge in remaining_edges]):
         feasible = True
         r_unadded, c_unadded, ratio, have_space = [[0] * len(remaining_edges) for _ in range(4)]
@@ -121,11 +121,12 @@ def process_edge(remaining_edges, cur_edges, cur_c, cur_r, cost_limit, num_node)
                 ratio[i] = -1
                 continue
             perfect_list = []
-            r_unadded[i] = graph_reliability(clone_list, perfect_list, num_node-1, num_node)
+            r_unadded[i] = graph_reliability(clone_list, perfect_list, num_node - 1, num_node)
             ratio[i] = r_unadded[i] / c_unadded[i]
             remaining_edges_copy = remaining_edges.copy()
             remaining_edges_copy.remove(e)
-            have_space[i] = 1 if cost_limit - total_cost(clone_list) >= min([edge.cost for edge in remaining_edges_copy]) else 0
+            have_space[i] = 1 if cost_limit - total_cost(clone_list) >= min(
+                [edge.cost for edge in remaining_edges_copy]) else 0
         for i in ratio:
             if i > 0:
                 feasible = True
@@ -145,7 +146,7 @@ def process_edge(remaining_edges, cur_edges, cur_c, cur_r, cost_limit, num_node)
         cur_edges.append(remaining_edges[idx])
         cur_c = total_cost(cur_edges)
         remaining_edges.remove(remaining_edges[idx])
-    return max_reliability, feasible
+    return max(max_reliability,cur_r), feasible
 
 
 def run():
@@ -235,7 +236,7 @@ def graph_reliability(Edges, PerfectEdges, numOfEdgesMST, num_node):
 
 # TO BE OPTIMIZED:
 def connected(Edges, PerfectEdges, num_node):
-    connectivity = [0] * num_node   # initialize as not connected
+    connectivity = [0] * num_node  # initialize as not connected
     connectivity[0] = 1
     redo = True
     while redo:
