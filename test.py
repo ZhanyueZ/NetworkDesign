@@ -142,6 +142,7 @@ def main():
                     remainingEdges_COST.append(edge)
 
             while costGoal - curC >= min([edge.cost for edge in remainingEdges]):
+                feasible = True
                 rUnadded = [0] * len(remainingEdges)
                 cUnadded = [0] * len(remainingEdges)
                 ratio = [0] * len(remainingEdges)
@@ -182,6 +183,7 @@ def main():
                 remainingEdges.remove(remainingEdges[maxIndex])
 
             while costGoal - curC_Cost >= min([edge.cost for edge in remainingEdges_COST]):
+                feasible = True
                 rUnadded_COST = [0] * len(remainingEdges_COST)
                 cUnadded_COST = [0] * len(remainingEdges_COST)
                 ratio = [0] * len(remainingEdges_COST)
@@ -221,22 +223,28 @@ def main():
                 #print("One edge found and added. Current Reliability: %s, Current Cost: %s" % (maxReliability, curC_Cost))
                 remainingEdges_COST.remove(remainingEdges_COST[maxIndex])
 
-            max_reliability_by_reli = max(curR,max_reliability_by_reli)
-            max_reliability_by_cost = max(curR_Cost,max_reliability_by_cost)
+            if feasible:
+                max_reliability_by_reli = max(curR,max_reliability_by_reli)
+                max_reliability_by_cost = max(curR_Cost,max_reliability_by_cost)
 
-            if max_reliability_by_reli > max_reliability_by_cost:
-                print("Under cost limit of %s, max reliability is %s" % (costGoal,max_reliability_by_reli))
-                curEdges.append(max_reliability_by_reli)
-                Brute.draw(curEdges,numOfNodes,costGoal)
+                if max_reliability_by_reli > max_reliability_by_cost:
+                    print("Under cost limit of %s, max reliability is %s" % (costGoal,max_reliability_by_reli))
+                    curEdges.append(max_reliability_by_reli)
+                    Brute.draw(curEdges,numOfNodes,costGoal)
+                else:
+                    print("Under cost limit of %s, max reliability is %s" % (costGoal,max_reliability_by_cost))
+                    curEdges_COST.append(max_reliability_by_cost)
+                    Brute.draw(curEdges_COST,numOfNodes,costGoal)
+                print("No more improvements.")
             else:
-                print("Under cost limit of %s, max reliability is %s" % (costGoal,max_reliability_by_cost))
-                curEdges_COST.append(max_reliability_by_cost)
-                Brute.draw(curEdges_COST,numOfNodes,costGoal)
-            print("No more improvements.")
-
+                print("No feasible Solution. Quit")
+                return
     elif method == 1:
         allCombination = Brute.findCombination(sortedEdgesByReli, numOfNodes, costGoal)
         exhaustive_result = Brute.exhaustive(allCombination, numOfNodes)
+        if exhaustive_result == 0:
+            print("No feasible Solution. Quit")
+            return
         print("Under cost limit of %s, max reliability is %s" % (costGoal,exhaustive_result[-1]))
         Brute.draw(exhaustive_result, numOfNodes, costGoal)
 
