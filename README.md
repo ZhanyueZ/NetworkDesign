@@ -1,4 +1,8 @@
-#### 1. Modify the `input_file_name` attribute in the main.py(you can choose 4_city.txt/5_city.txt/6_city.txt)    
-#### 2. If you can't run the NetworkDesign.py due to the dependency problem, try `pip install -r requirements.txt`  
-#### 3. Input the cost limit and choose the computing method( 1 for exhaustive and 2 for efficient)  
-#### 4. The maximum reliability should be printed and a Network design should be plotted as well.   
+# Network Designer: a pratical implementation of graph theory
+This program is a collabrative project of ECSE 422 Fault Tolerant Computing
+
+## How to use:
+#### 1. Modify the `tester` attribute in the NetworkDesigner.py (all tester files under folder 'tester');
+#### 2. Install dependencies as instructed in requirements.txt;
+#### 3. Input the cost limit and choose the computing method (1 for exhaustive and 2 for advanced), also beware of your cost estimation before trying;
+#### 4. The maximum reliability and runtime should be printed and a Network design should be plotted.
