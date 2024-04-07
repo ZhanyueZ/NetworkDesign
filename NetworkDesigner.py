@@ -3,6 +3,7 @@ import time
 import math
 import numpy as np
 from itertools import combinations
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 from Edge import Edge
 
@@ -161,7 +162,7 @@ def draw(edges, num_node, c):
             idx_a, idx_b = int(i.get_city_a()), int(i.get_city_b())
             ax.plot([x[idx_a], x[idx_b]], [y[idx_a], y[idx_b]], marker='o', color='blue')
         else:
-            plt.text(-1, -1, f"Under cost {c}, MaxR {i:.4f}")
+            plt.text(-1, -1, f"Under cost {c}, MaxR {i:.6f}")
     for i in range(len(labels)):
         ax.text(x[i], y[i], labels[i], fontsize=12, ha='right', va='bottom')
     ax.axis('off')
@@ -206,20 +207,30 @@ def connected(edges, edges_perfect, num_node):
 
 
 def main():
-    limit = int(input("Please specify cost limit: "))
-    algo = int(input("Press 1 for exhaustive, 2 for advanced: "))
+    while True:
+        try:
+            limit = int(input("Please specify cost limit: "))
+            assert limit > 0
+            break
+        except (ValueError, AssertionError) as e:
+            print("Invalid input: ", e)
+    while True:
+        try:
+            algo = int(input("Press 1 for exhaustive, 2 for advanced: "))
+            assert algo in [1, 2]
+            break
+        except (ValueError, AssertionError) as e:
+            print("Invalid input: ", e)
     num_node, matrix_r, matrix_c = read()
     e_by_r = reorder(num_node, matrix_r, matrix_c, 'reliability')
     e_by_c = reorder(num_node, matrix_r, matrix_c, 'cost')
     if algo == 1:
         start = time.time()
         valid_comb = list()
+        pbar = tqdm(total=sum(math.comb(len(e_by_r), i) for i in range(num_node - 1, len(e_by_r) + 1)))
         for i in range(num_node - 1, len(e_by_r) + 1):
-            sub_combination = list(combinations(e_by_r, i))
-            for row in sub_combination:
-                cost = 0
-                for item in row:    # iterate over all element
-                    cost += item.cost
+            for row in list(combinations(e_by_r, i)):
+                cost = sum(item.cost for item in row)
                 # TO BE OPTIMIZED: call connected() directly
                 checklist = np.zeros(num_node)
                 change = True
@@ -235,6 +246,8 @@ def main():
                         change = False
                 if cost <= limit and 0 not in checklist:
                     valid_comb.append(list(row))
+                pbar.update(1)
+        pbar.close()
         arr = []
         for i in valid_comb:
             null_list = []
@@ -246,7 +259,7 @@ def main():
             print("FEASIBLE SOLUTION NOT POSSIBLE. PROGRAM TERMINATED.")
             return
         print("Under cost limit of %s, max reliability is %s" % (limit, result[-1]))
-        print("Runtime for advanced algorithm: %.6f ms" % ((time.time() - start) * 1000))
+        print("Runtime for advanced algorithm: %.4f ms" % ((time.time() - start) * 1000))
         draw(result, num_node, limit)
     elif algo == 2:
         start = time.time()
@@ -260,7 +273,7 @@ def main():
                                            sum(e.get_cost() for e in mst), curr_r, limit, num_node)
         max_r_by_c, feasible_c = optimizer([edge for edge in e_by_c if edge not in mst_c], curr_e_c,
                                            sum(e.get_cost() for e in mst_c), curr_r_c, limit, num_node)
-        print("Runtime for advanced algorithm: %.6f ms" % ((time.time() - start) * 1000))
+        print("Runtime for advanced algorithm: %.4f ms" % ((time.time() - start) * 1000))
         if feasible_r or feasible_c:
             max_r_by_r = max(curr_r, max_r_by_r)
             max_r_by_c = max(curr_r_c, max_r_by_c)
@@ -276,9 +289,6 @@ def main():
         else:
             print("FEASIBLE SOLUTION NOT POSSIBLE. PROGRAM TERMINATED.")
             return
-    else:
-        print("INVALID INDEX. PROGRAM TERMINATED.")
-        return
 
 
 if __name__ == "__main__":
