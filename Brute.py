@@ -1,6 +1,6 @@
 from itertools import combinations
 import numpy as np
-import test
+import NetworkDesign
 import matplotlib.pyplot as plt
 import math
 
@@ -47,7 +47,7 @@ def exhaustive(edges_list, node):
 
     for i in edges_list:
         null_list = []
-        R_i = test.findGraphReliability(i, null_list, node - 1, node)
+        R_i = NetworkDesign.findGraphReliability(i, null_list, node - 1, node)
         i.append(R_i)
         sorted_list.append(i)
         # print(i[-1])

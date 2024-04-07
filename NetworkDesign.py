@@ -3,6 +3,7 @@ import Brute
 
 input_file_name = '4_city.txt'
 
+# Read the input file
 def readInputFile():
     lines = [line for line in open(input_file_name) if not line.startswith('#') and len(line.strip())]
     numOfNodes = int(lines[0].split("\n")[0])
@@ -29,6 +30,8 @@ def readInputFile():
     # print("Cost:", cost)
     return [numOfNodes, reliability, cost]
 
+# Sort the Edges by large Reliability first
+# If same reliability then less cost
 
 def sortEdges(nodeNum, reliabilities, costs):
     Edges = []
@@ -43,6 +46,8 @@ def sortEdges(nodeNum, reliabilities, costs):
     Edges.sort(key=lambda x: (x.reliability, -x.cost), reverse=True)
     return Edges
 
+# Sort the edges by small cost first
+# If same cost then larger reliability
 def sortEdgesByCost(nodeNum, reliabilities, costs):
     Edges = []
     index = 0
@@ -56,6 +61,7 @@ def sortEdgesByCost(nodeNum, reliabilities, costs):
     Edges.sort(key=lambda x: (x.cost, -x.reliability), reverse=False)
     return Edges
 
+# find the Minimum Spanning Tree of the given edges
 def findMST(nodeNum, sortedEdges):
     nodes = []
     edges = []
@@ -99,7 +105,7 @@ def findTotalCostST(path):
     return cost
 
 
-def main():
+def Run():
     costGoal = int(input("Please Input Cost goal :"))
     method = int(input("1 for Brute force. 2 for optimized method:"))
 
@@ -301,4 +307,4 @@ def isConnect(Edges, PerfectEdges, numOfNodes):
 
 
 if __name__ == "__main__":
-    main()
+    Run()

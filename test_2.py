@@ -1,5 +1,5 @@
 from Edge import Edge
-import test
+import NetworkDesign
 
 
 def main():
@@ -55,7 +55,7 @@ def main():
     edge7.set_reliability(0.97)
     mst = [edge7, edge2, edge6, edge1, edge3, edge4, edge5]
     pre = []
-    reli = test.findGraphReliability(mst, pre, 5, 6)
+    reli = NetworkDesign.findGraphReliability(mst, pre, 5, 6)
     print(reli)
 
 
