@@ -1,0 +1,24 @@
+# this is a comment - skip lines starting with a hash
+#
+# number of nodes
+5
+#
+# symmetric reliability matrix - stored in row major form
+#
+# upper triangular reliability matrix - no diagonal elements
+0.97 0.93 0.94 0.96
+# skip this comment
+0.93 0.91 0.96
+# skip this comment 
+0.98 0.91
+# skip this comment
+0.95
+#
+# symmetric cost matrix - stored in row major form
+#
+20 10 10 10
+15 25 10
+10 20
+10
+#
+# end
