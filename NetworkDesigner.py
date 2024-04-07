@@ -7,7 +7,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from Edge import Edge
 
-tester = './tester/6_city.txt'
+tester = './tester/8_1.txt'
 
 
 # parse input text file
@@ -54,8 +54,6 @@ def reorder(num_node, reliabilities, costs, *args):
         e.sort(key=lambda x: (x.reliability, -x.cost), reverse=True)
     elif 'cost' in args:
         e.sort(key=lambda x: (x.cost, -x.reliability))
-    else:
-        raise ValueError("INVALID CRITERIA")
     return e
 
 
@@ -162,9 +160,9 @@ def draw(edges, num_node, c):
             idx_a, idx_b = int(i.get_city_a()), int(i.get_city_b())
             ax.plot([x[idx_a], x[idx_b]], [y[idx_a], y[idx_b]], marker='o', color='blue')
         else:
-            plt.text(-1, -1, f"Under cost {c}, MaxR {i:.6f}")
+            plt.text(-1, -1, f"Under cost {c}, maxR {i:.6f}")
     for i in range(len(labels)):
-        ax.text(x[i], y[i], labels[i], fontsize=12, ha='right', va='bottom')
+        ax.text(x[i], y[i], labels[i], fontsize=12)
     ax.axis('off')
     plt.show()
 
@@ -228,31 +226,31 @@ def main():
         start = time.time()
         valid_comb = list()
         pbar = tqdm(total=sum(math.comb(len(e_by_r), i) for i in range(num_node - 1, len(e_by_r) + 1)))
-        for i in range(num_node - 1, len(e_by_r) + 1):
-            for row in list(combinations(e_by_r, i)):
+        for e in range(num_node - 1, len(e_by_r) + 1):
+            for row in list(combinations(e_by_r, e)):
                 cost = sum(item.cost for item in row)
                 # TO BE OPTIMIZED: call connected() directly
                 checklist = np.zeros(num_node)
-                change = True
+                changed = True
                 checklist[row[1].get_city_a()] = 1
                 checklist[row[1].get_city_b()] = 1
-                while change:
-                    copy_checklist = checklist[:]
+                while changed:
+                    replica = checklist[:]
                     for j in row:
                         if checklist[j.get_city_a()] != checklist[j.get_city_b()]:
                             checklist[j.get_city_a()] = 1
                             checklist[j.get_city_b()] = 1
-                    if np.all(copy_checklist == checklist):
-                        change = False
+                    if np.all(replica == checklist):
+                        changed = False
                 if cost <= limit and 0 not in checklist:
                     valid_comb.append(list(row))
                 pbar.update(1)
         pbar.close()
         arr = []
-        for i in valid_comb:
-            null_list = []
-            i.append(reliability_graph(i, null_list, num_node - 1, num_node))
-            arr.append(i)
+        for e in valid_comb:
+            list_perfect = []
+            e.append(reliability_graph(e, list_perfect, num_node - 1, num_node))
+            arr.append(e)
         arr = sorted(arr, key=lambda x: x[-1])
         result = arr[-1] if arr else 0  # non-empty list
         if result == 0:
@@ -261,7 +259,7 @@ def main():
         print("Under cost limit of %s, max reliability is %s" % (limit, result[-1]))
         print("Runtime for advanced algorithm: %.4f ms" % ((time.time() - start) * 1000))
         draw(result, num_node, limit)
-    elif algo == 2:
+    else:
         start = time.time()
         mst_c = kruskal(num_node, e_by_c)
         mst = kruskal(num_node, e_by_r)
@@ -269,12 +267,12 @@ def main():
         curr_r_c = r_total(mst_c)
         curr_e = mst.copy()
         curr_e_c = mst_c.copy()
-        max_r_by_r, feasible_r = optimizer([edge for edge in e_by_r if edge not in mst], curr_e,
+        max_r_by_r, r_feasible = optimizer([edge for edge in e_by_r if edge not in mst], curr_e,
                                            sum(e.get_cost() for e in mst), curr_r, limit, num_node)
-        max_r_by_c, feasible_c = optimizer([edge for edge in e_by_c if edge not in mst_c], curr_e_c,
+        max_r_by_c, c_feasible = optimizer([edge for edge in e_by_c if edge not in mst_c], curr_e_c,
                                            sum(e.get_cost() for e in mst_c), curr_r_c, limit, num_node)
         print("Runtime for advanced algorithm: %.4f ms" % ((time.time() - start) * 1000))
-        if feasible_r or feasible_c:
+        if r_feasible or c_feasible:
             max_r_by_r = max(curr_r, max_r_by_r)
             max_r_by_c = max(curr_r_c, max_r_by_c)
             if max_r_by_r > max_r_by_c:
