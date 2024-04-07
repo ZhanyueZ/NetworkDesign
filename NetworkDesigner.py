@@ -1,9 +1,12 @@
+# POTENTIAL SHORTCUT: import networkx as nx
 import time
-import numpy as np  # TO BE OPTIMIZED: use numpy for faster array operations
+import math
+import numpy as np
+from itertools import combinations
+import matplotlib.pyplot as plt
 from Edge import Edge
-import Brute
 
-tester = './tester/4_city.txt'
+tester = './tester/6_city.txt'
 
 
 # parse input text file
@@ -17,42 +20,46 @@ def read():
                 num_node = int(line.strip())
                 break
         if num_node is None:
-            raise ValueError("NUMBER OF NODES NOT SPECIFIED IN THE PROVIDED FILE.")
-        reliability_lines = lines[8: 5 + 2 * num_node]
-        for line in reliability_lines:
+            raise ValueError("NUMBER OF NODES UNSPECIFIED IN THE PROVIDED FILE.")
+        for line in lines[8: 2 * num_node + 5]:
             if not line.startswith('#') and line.strip():
                 reliability.extend(map(float, line.strip().split()))
-        cost_lines = lines[- 2 - num_node:]
-        for line in cost_lines:
+        for line in lines[- num_node - 2:]:
             if not line.startswith('#') and line.strip():
                 cost.extend(map(int, line.strip().split()))
     return [num_node, reliability, cost]
 
 
-# sort the edges by descending reliability / ascending cost; less cost precedes if same reliability
-def sort_edge(num_node, reliabilities, costs, *args):
-    edges = []
+def reorder(num_node, reliabilities, costs, *args):
+    """
+    SORT EDGES BY THE GIVEN CRITERIA
+        :param num_node:      number of nodes in the graph;
+        :param reliabilities: list of edge reliabilities;
+        :param costs:         list of edge costs;
+        Additional arguments specifying the sorting criteria:
+            'reliability' to sort by descending reliability (if same, less cost precedes),
+            'cost' to sort by ascending cost (if same, larger reliability precedes).
+    """
+    e = []
     index = 0
     for i in range(num_node):
         for j in range(i + 1, num_node):
-            temp = Edge(i, j)
-            temp.set_reliability(reliabilities[index])
-            temp.set_cost(costs[index])
-            edges.append(temp)
+            tmp = Edge(i, j)
+            tmp.set_reliability(reliabilities[index])
+            tmp.set_cost(costs[index])
+            e.append(tmp)
             index = index + 1
     if 'reliability' in args:
-        edges.sort(key=lambda x: (x.reliability, -x.cost), reverse=True)
+        e.sort(key=lambda x: (x.reliability, -x.cost), reverse=True)
     elif 'cost' in args:
-        edges.sort(key=lambda x: (x.cost, -x.reliability), reverse=False)
+        e.sort(key=lambda x: (x.cost, -x.reliability))
     else:
-        raise ValueError("Valid sorting parameter: 'reliability' or 'cost'.")
-    return edges
+        raise ValueError("INVALID CRITERIA")
+    return e
 
 
 # find the Minimum Spanning Tree of the given edges
-def kruskal(num_node, sortedEdges, cost_limit):
-    nodes, edges = set(), []
-
+def kruskal(num_node, sorted_edges):
     def find(node):
         if parent[node] != node:
             parent[node] = find(parent[node])
@@ -62,200 +69,217 @@ def kruskal(num_node, sortedEdges, cost_limit):
         pu, pv = find(u), find(v)
         if pu != pv:
             parent[pu] = pv
-
-    #sortedEdges.sort(key=lambda x: x.reliability, reverse=True)
-    parent = {i: i for i in range(num_node)}  # initialize parent dictionary for union-find
-    for edge in sortedEdges:
-        if len(edges) == num_node - 1:
+    nodes, e = set(), []
+    sorted_edges.sort(key=lambda x: x.reliability, reverse=True)
+    parent = {i: i for i in range(num_node)}    # initialize parent dictionary for union-find
+    for edge in sorted_edges:
+        if len(e) == num_node - 1:
             break
-        a, b = edge.get_cityA(), edge.get_cityB()
+        a, b = edge.get_city_a(), edge.get_city_b()
         if find(a) != find(b):
             union(a, b)
-            edges.append(edge)
-    mst_cost = sum(edge.cost for edge in edges)
-    # TO BE OPTIMIZED: if total cost exceeds limit, replace edge(s) with one(s) with lower reliability
-    while mst_cost > cost_limit:
-        old = min(edges, key=lambda x: x.reliability)
-        unused = [edge for edge in sortedEdges if edge not in edges]
-        new = None
-        for new_edge in unused:
-            if find(new_edge.get_cityA()) != find(new_edge.get_cityB()):
-                new = new_edge
-                break
-        if new is None:
-            break
-        edges.remove(old)
-        edges.append(new)
-        mst_cost = mst_cost - old.cost + new.cost
-    return edges
+            e.append(edge)
+    # TO BE OPTIMIZED: move cost limit check and replacement here
+    return e
 
 
-def total_reliability(paths):
+def r_total(path):
     r = 1
-    for e in paths:
-        temp = e.get_reliability()
-        r = temp * r
+    for e in path:
+        r *= e.get_reliability()
     return r
 
 
-def total_cost(path):
-    c = 0
-    for e in path:
-        c += e.get_cost()
-    return c
-
-
-def process_edge(remaining_edges, cur_edges, cur_c, cur_r, cost_limit, num_node):
-    max_reliability = 0
-    feasible = False
-    if total_cost(cur_edges) <= cost_limit: feasible = True
-    while cost_limit - cur_c >= min([edge.cost for edge in remaining_edges]):
-        feasible = True
-        r_unadded, c_unadded, ratio, have_space = [[0] * len(remaining_edges) for _ in range(4)]
-        for i in range(len(remaining_edges)):
-            e = remaining_edges[i]
-            clone_list = cur_edges.copy()
-            clone_list.append(e)
-            c_unadded[i] = total_cost(clone_list)
-            if c_unadded[i] > cost_limit:
+# DOUBLE CHECK: function refined by ChatGPT
+def optimizer(e_rest, e_curr, cost, reliability, budget, num_node):
+    max_r = 0
+    feasible = sum(e.get_cost() for e in e_curr) <= budget
+    while budget - cost >= min([edge.cost for edge in e_rest]):
+        r_rest, c_rest, ratio, available = [[0] * len(e_rest) for _ in range(4)]
+        for i, e in enumerate(e_rest):
+            replica = e_curr.copy() + [e]
+            c_rest[i] = sum(e.get_cost() for e in replica)
+            if c_rest[i] > budget:
                 ratio[i] = -1
                 continue
-            perfect_list = []
-            r_unadded[i] = graph_reliability(clone_list, perfect_list, num_node - 1, num_node)
-            ratio[i] = r_unadded[i] / c_unadded[i]
-            remaining_edges_copy = remaining_edges.copy()
-            remaining_edges_copy.remove(e)
-            have_space[i] = 1 if cost_limit - total_cost(clone_list) >= min(
-                [edge.cost for edge in remaining_edges_copy]) else 0
-        for i in ratio:
-            if i > 0:
-                feasible = True
+            list_perfect = []
+            r_rest[i] = reliability_graph(replica, list_perfect, num_node - 1, num_node)
+            ratio[i] = r_rest[i] / c_rest[i]
+            available[i] = 1 if (budget - sum(e.get_cost() for e in replica) >=
+                                 min([edge.cost for edge in e_rest[:i] + e_rest[i + 1:]])) else 0
         max_ratio = max(ratio)
-        max_reliability = max(r_unadded)
-        if ratio.index(max_ratio) == r_unadded.index(max_reliability):
-            idx = ratio.index(max_ratio)
-        else:
-            if have_space[r_unadded.index(max_reliability)] == 1:
-                idx = r_unadded.index(max_reliability)
-            elif have_space[r_unadded.index(max_reliability)] == 0 and have_space[ratio.index(max_ratio)] == 1:
-                idx = ratio.index(max_ratio)
-            else:
-                idx = r_unadded.index(max_reliability)
-        max_reliability = r_unadded[idx]
-        max_reliability = max(cur_r, max_reliability)
-        cur_edges.append(remaining_edges[idx])
-        cur_c = total_cost(cur_edges)
-        remaining_edges.remove(remaining_edges[idx])
-    return max(max_reliability,cur_r), feasible
+        max_r = max(r_rest)
+        r = ratio.index(max_ratio)
+        idx = r if r == r_rest.index(max_r) else (r if available[r] == 1 else r_rest.index(max_r))
+        max_r = max(reliability, max_r)
+        e_curr.append(e_rest[idx])
+        cost = sum(e.get_cost() for e in e_curr)
+        e_rest.pop(idx)
+    return max(max_r, reliability), feasible
 
 
-def run():
-    print("ATTENTION: Beware of your cost estimation before trying a tester.")
-    cost_limit = int(input("Please Input Cost Goal: "))
-    method = int(input("Press 1 for exhaustive, 2 for advanced: "))
-    if method != 1 and method != 2:
-        print("INVALID INDEX. PROGRAM TERMINATED.")
-        return
-    input_value = read()
-    num_node = input_value[0]
-    all_reliability = input_value[1]
-    all_cost = input_value[2]
-    feasible = False
-    sorted_edges_by_reli = sort_edge(num_node, all_reliability, all_cost, 'reliability')
-    sort_edges_cost = sort_edge(num_node, all_reliability, all_cost, 'cost')
-    if method == 2:
-        start = time.time()
-        mst_c = kruskal(num_node, sort_edges_cost, cost_limit)
-        mst = kruskal(num_node, sorted_edges_by_reli, cost_limit)
-        cur_r = total_reliability(mst)
-        cur_r_c = total_reliability(mst_c)
-        cur_c = total_cost(mst)
-        cur_c_c = total_cost(mst_c)
-        cur_e = mst.copy()
-        cur_e_c = mst_c.copy()
-        remaining_e = [edge for edge in sorted_edges_by_reli if edge not in mst]
-        remaining_e_c = [edge for edge in sort_edges_cost if edge not in mst_c]
-        max_r_by_r, feasible_reli = process_edge(remaining_e, cur_e, cur_c, cur_r, cost_limit, num_node)
-        max_r_by_c, feasible_cost = process_edge(remaining_e_c, cur_e_c, cur_c_c, cur_r_c, cost_limit, num_node)
-        runtime = (time.time() - start) * 1000
-        print("Runtime for advanced algorithm: ", runtime, "ms")
-        if feasible_reli or feasible_cost:
-            max_r_by_r = max(cur_r, max_r_by_r)
-            max_r_by_c = max(cur_r_c, max_r_by_c)
-            if max_r_by_r > max_r_by_c:
-                print("Under cost limit of %s, max reliability is %s" % (cost_limit, max_r_by_r))
-                cur_e.append(max_r_by_r)
-                Brute.draw(cur_e, num_node, cost_limit, runtime)
-            else:
-                print("Under cost limit of %s, max reliability is %s" % (cost_limit, max_r_by_c))
-                cur_e_c.append(max_r_by_c)
-                Brute.draw(cur_e_c, num_node, cost_limit, runtime)
-            print("No more improvements.")
-        else:
-            print("No feasible Solution. Quit")
-            return
-    elif method == 1:
-        start = time.time()
-        result = Brute.exhaustive(Brute.combination(sorted_edges_by_reli, num_node, cost_limit), num_node)
-        if result == 0:
-            print("FEASIBLE SOLUTION NOT POSSIBLE. PROGRAM TERMINATED.")
-            return
-        print("Under cost limit of %s, max reliability is %s" % (cost_limit, result[-1]))
-        runtime = (time.time() - start) * 1000
-        print("Runtime for exhaustive algorithm: ", runtime, "ms")
-        Brute.draw(result, num_node, cost_limit, runtime)
-
-
-def graph_reliability(Edges, PerfectEdges, numOfEdgesMST, num_node):
+def reliability_graph(edges, edges_perfect, num_edge, num_node):
     """
     CALCULATE RELIABILITY OF THE GRAPH RECURSIVELY
-        :param Edges:         A list of all edges in the graph;
-        :param numOfEdgesMST: The number of edges in the minimum spanning tree;
-        :param PerfectEdges:  A list of edges that are considered reliable under the assumption;
-        :param num_node:      The number of nodes in the graph.
+        :param edges:         list of all edges in the graph;
+        :param edges_perfect: list of edges that are considered reliable under the assumption;
+        :param num_edge:      number of edges in the minimum spanning tree;
+        :param num_node:      number of nodes in the graph.
     RETURNS: reliability of the graph
     """
     r = 0
-    sortedEdges = sorted(Edges, key=lambda x: x.reliability, reverse=True)
-    if len(sortedEdges) + len(PerfectEdges) == numOfEdgesMST and connected(sortedEdges, PerfectEdges, num_node):
-        return total_reliability(Edges)
+    sorted_e = sorted(edges, key=lambda x: x.get_city_a(), reverse=True)
+    if len(sorted_e) + len(edges_perfect) == num_edge and connected(sorted_e, edges_perfect, num_node):
+        return r_total(edges)
     else:
-        if not connected(sortedEdges, PerfectEdges, num_node):
+        if not connected(sorted_e, edges_perfect, num_node):
             return 0
-        if len(sortedEdges) > 0:
-            e = sortedEdges[0]
-            cloned_edges = sortedEdges.copy()
-            cloned_edges.remove(e)
-            r += (1 - e.get_reliability()) * graph_reliability(cloned_edges, PerfectEdges, numOfEdgesMST, num_node)
-            PerfectEdges.append(e)
-            r += e.get_reliability() * graph_reliability(cloned_edges, PerfectEdges, numOfEdgesMST, num_node)
+        if len(sorted_e) > 0:
+            e = sorted_e[0]
+            cloned = sorted_e.copy()
+            cloned.remove(e)
+            r += (1 - e.get_reliability()) * reliability_graph(cloned, edges_perfect, num_edge, num_node)
+            edges_perfect.append(e)
+            r += e.get_reliability() * reliability_graph(cloned, edges_perfect, num_edge, num_node)
             return r
         else:
             return 1
 
 
-# TO BE OPTIMIZED:
-def connected(Edges, PerfectEdges, num_node):
-    connectivity = [0] * num_node  # initialize as not connected
+def draw(edges, num_node, c):
+    angle = 2 * math.pi / num_node
+    points, labels = [], []
+    for i in range(num_node):
+        x, y = math.cos(i * angle), math.sin(i * angle)
+        points.append((x, y))
+        labels.append(i)
+    x, y = zip(*points)  # separate x and y
+    fig, ax = plt.subplots()
+    ax.scatter(x, y, color='black')
+    for i in edges:
+        if not isinstance(i, float):
+            idx_a, idx_b = int(i.get_city_a()), int(i.get_city_b())
+            ax.plot([x[idx_a], x[idx_b]], [y[idx_a], y[idx_b]], marker='o', color='blue')
+        else:
+            plt.text(-1, -1, f"Under cost {c}, MaxR {i:.4f}")
+    for i in range(len(labels)):
+        ax.text(x[i], y[i], labels[i], fontsize=12, ha='right', va='bottom')
+    ax.axis('off')
+    plt.show()
+
+
+"""
+# alternative mathematical approach
+def connected(edges, edges_perfect, num_node):
+    connectivity = [0] * num_node   # initialize as not connected
     connectivity[0] = 1
     redo = True
     while redo:
         redo = False
-        for edge in Edges:
-            if connectivity[edge.get_cityA()] != connectivity[edge.get_cityB()]:
-                connectivity[edge.get_cityA()] = 1
-                connectivity[edge.get_cityB()] = 1
+        for e in edges + edges_perfect:  # merge sets
+            if connectivity[e.get_city_a()] != connectivity[e.get_city_b()]:
+                connectivity[e.get_city_a()], connectivity[e.get_city_b()] = 1, 1
                 redo = True
-        for edge in PerfectEdges:
-            if connectivity[edge.get_cityA()] != connectivity[edge.get_cityB()]:
-                connectivity[edge.get_cityA()] = 1
-                connectivity[edge.get_cityB()] = 1
-                redo = True
-    if 0 in connectivity:
-        return False
+    return sum(connectivity) == num_node
+"""
+
+
+def connected(edges, edges_perfect, num_node):
+    def dfs(n, g, is_visited):
+        """
+        DEPTH-FIRST SEARCH TRAVERSAL
+            :param n: current node being visited;
+            :param g: adjacency list representation of the graph;
+            :param is_visited: boolean list to record visited nodes.
+        """
+        is_visited[n] = True
+        for neighbour in g[n]:
+            if not is_visited[neighbour]:
+                dfs(neighbour, g, is_visited)
+    graph = [[] for _ in range(num_node)]
+    for e in edges + edges_perfect:
+        graph[e.get_city_a()].append(e.get_city_b())
+        graph[e.get_city_b()].append(e.get_city_a())
+    visited = [False] * num_node
+    dfs(0, graph, visited)
+    return all(visited)
+
+
+def main():
+    limit = int(input("Please specify cost limit: "))
+    algo = int(input("Press 1 for exhaustive, 2 for advanced: "))
+    num_node, matrix_r, matrix_c = read()
+    e_by_r = reorder(num_node, matrix_r, matrix_c, 'reliability')
+    e_by_c = reorder(num_node, matrix_r, matrix_c, 'cost')
+    if algo == 1:
+        start = time.time()
+        valid_comb = list()
+        for i in range(num_node - 1, len(e_by_r) + 1):
+            sub_combination = list(combinations(e_by_r, i))
+            for row in sub_combination:
+                cost = 0
+                for item in row:    # iterate over all element
+                    cost += item.cost
+                # TO BE OPTIMIZED: call connected() directly
+                checklist = np.zeros(num_node)
+                change = True
+                checklist[row[1].get_city_a()] = 1
+                checklist[row[1].get_city_b()] = 1
+                while change:
+                    copy_checklist = checklist[:]
+                    for j in row:
+                        if checklist[j.get_city_a()] != checklist[j.get_city_b()]:
+                            checklist[j.get_city_a()] = 1
+                            checklist[j.get_city_b()] = 1
+                    if np.all(copy_checklist == checklist):
+                        change = False
+                if cost <= limit and 0 not in checklist:
+                    valid_comb.append(list(row))
+        arr = []
+        for i in valid_comb:
+            null_list = []
+            i.append(reliability_graph(i, null_list, num_node - 1, num_node))
+            arr.append(i)
+        arr = sorted(arr, key=lambda x: x[-1])
+        result = arr[-1] if arr else 0  # non-empty list
+        if result == 0:
+            print("FEASIBLE SOLUTION NOT POSSIBLE. PROGRAM TERMINATED.")
+            return
+        print("Under cost limit of %s, max reliability is %s" % (limit, result[-1]))
+        print("Runtime for advanced algorithm: %.6f ms" % ((time.time() - start) * 1000))
+        draw(result, num_node, limit)
+    elif algo == 2:
+        start = time.time()
+        mst_c = kruskal(num_node, e_by_c)
+        mst = kruskal(num_node, e_by_r)
+        curr_r = r_total(mst)
+        curr_r_c = r_total(mst_c)
+        curr_e = mst.copy()
+        curr_e_c = mst_c.copy()
+        max_r_by_r, feasible_r = optimizer([edge for edge in e_by_r if edge not in mst], curr_e,
+                                           sum(e.get_cost() for e in mst), curr_r, limit, num_node)
+        max_r_by_c, feasible_c = optimizer([edge for edge in e_by_c if edge not in mst_c], curr_e_c,
+                                           sum(e.get_cost() for e in mst_c), curr_r_c, limit, num_node)
+        print("Runtime for advanced algorithm: %.6f ms" % ((time.time() - start) * 1000))
+        if feasible_r or feasible_c:
+            max_r_by_r = max(curr_r, max_r_by_r)
+            max_r_by_c = max(curr_r_c, max_r_by_c)
+            if max_r_by_r > max_r_by_c:
+                print("Under cost limit of %s, max reliability is %s" % (limit, max_r_by_r))
+                curr_e.append(max_r_by_r)
+                draw(curr_e, num_node, limit)
+            else:
+                print("Under cost limit of %s, max reliability is %s" % (limit, max_r_by_c))
+                curr_e_c.append(max_r_by_c)
+                draw(curr_e_c, num_node, limit)
+            print("NO MORE IMPROVEMENT")
+        else:
+            print("FEASIBLE SOLUTION NOT POSSIBLE. PROGRAM TERMINATED.")
+            return
     else:
-        return True
+        print("INVALID INDEX. PROGRAM TERMINATED.")
+        return
 
 
 if __name__ == "__main__":
-    run()
+    main()
