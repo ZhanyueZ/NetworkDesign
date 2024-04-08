@@ -1,20 +1,22 @@
 class Edge:
-    def __init__(self, cityA, cityB):
-        self.cityA = cityA
-        self.cityB = cityB
+    def __init__(self, a, b):
+        self.cityA = a
+        self.cityB = b
         self.reliability = 0
         self.cost = 0
 
-    def get_cityA(self):
+    def get_city_a(self):
         return self.cityA
 
-    def get_cityB(self):
+    def get_city_b(self):
         return self.cityB
 
     def get_reliability(self):
         return self.reliability
+
     def __eq__(self, other):
         return self.cityA == other.cityA and self.cityB == other.cityB
+
     def set_reliability(self, reliability):
         self.reliability = reliability
 
