@@ -1,4 +1,9 @@
-# TO BE OPTIMIZED: use different data structures: numpy, set etc.
+# OPTIMIZATIONS:
+# 1. upgrade data structures, e.g. numpy, set
+# 2. exhaustive: multiprocessing / range limitation
+# 3. efficient: budget check + replacement / early termination
+# 4. import networkx for connectivity and mst
+
 import math
 import time
 from itertools import combinations
@@ -6,59 +11,44 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from Edge import Edge
 
-path = './tester/6_city.txt'
-NUM_NODE = 6
-
-# ALTERNATIVE MATHEMATICAL APPROACH
-"""
-def connected(edges, reliable):
-    connectivity = [0] * NUM_NODE   # initialize as not connected
-    connectivity[0] = 1
-    redo = True
-    while redo:
-        redo = False
-        for e in edges + reliable:  # merge sets
-            if connectivity[e.get_city_a()] != connectivity[e.get_city_b()]:
-                connectivity[e.get_city_a()], connectivity[e.get_city_b()] = 1, 1
-                redo = True
-    return sum(connectivity) == NUM_NODE
-"""
+path = './tester/5_city.txt'
+NUM_NODE = 5
 
 
 def connected(edges):
-    def dfs(n, g, is_visited):
+    def dfs(n, g, visited):
         """
         DEPTH-FIRST SEARCH TRAVERSAL
-            :param n:          current node being visited;
-            :param g:          adjacency list representation of the graph;
-            :param is_visited: boolean list to record visited nodes.
+            :param n:       current node being visited;
+            :param g:       adjacency list representation of the graph;
+            :param visited: boolean list to record visited nodes.
         """
-        is_visited[n] = True
+        visited[n] = True
         for neighbour in g[n]:
-            if not is_visited[neighbour]:
-                dfs(neighbour, g, is_visited)
+            if not visited[neighbour]:
+                dfs(neighbour, g, visited)
 
     graph = [[] for _ in range(NUM_NODE)]
+    is_visited = [False] * NUM_NODE
     for e in edges:
         graph[e.get_city_a()].append(e.get_city_b())
         graph[e.get_city_b()].append(e.get_city_a())
-    visited = [False] * NUM_NODE
-    dfs(0, graph, visited)
-    return all(visited)  # nx.is_connected(G)
+    dfs(0, graph, is_visited)
+    return all(is_visited)
 
 
 # RETURNS RELIABILITY OF THE GRAPH RECURSIVELY
 def r_g(edges, reliable):
-    sorted_e = sorted(edges, key=lambda x: x.get_city_a(), reverse=True)
-    if len(sorted_e) + len(reliable) == NUM_NODE - 1 and connected(sorted_e + reliable):
+    e_sorted = sorted(edges, key=lambda x: x.get_city_a(), reverse=True)
+    if len(e_sorted) + len(reliable) == NUM_NODE - 1 and connected(e_sorted + reliable):
         return math.prod(e.get_reliability() for e in edges)
     else:
-        if not connected(sorted_e + reliable):
+        if not connected(e_sorted + reliable):
             return 0
-        if len(sorted_e) > 0:
+        if len(e_sorted) > 0:
             r = 0
-            e = sorted_e[0]
-            cloned = sorted_e.copy()
+            e = e_sorted[0]
+            cloned = e_sorted.copy()
             cloned.remove(e)
             r += (1 - e.get_reliability()) * r_g(cloned, reliable)
             reliable.append(e)
@@ -69,14 +59,14 @@ def r_g(edges, reliable):
 
 
 def draw(edges, c, title='ADVANCED'):
-    """last element of edges is the graph reliability"""
+    """last element of edges is graph reliability"""
     angle = 2 * math.pi / NUM_NODE
     points, labels = [], []
     for i in range(NUM_NODE):
         x, y = math.cos(i * angle), math.sin(i * angle)
         points.append((x, y))
         labels.append(i + 1)
-    x, y = zip(*points)  # separate x and y
+    x, y = zip(*points)  # separate x & y
     fig, ax = plt.subplots()
     ax.scatter(x, y)
     for i in edges[:-1]:
@@ -90,31 +80,25 @@ def draw(edges, c, title='ADVANCED'):
     plt.show()
 
 
-def optimizer(e_r, budget):
-    # KRUSKAL'S ALGORITHM TO FIND MINIMUM SPANNING TREE USING DISJOINT-SET DATA STRUCTURE
+def optimizer(edges, budget):
+    # KRUSKAL'S: MINIMUM SPANNING TREE WITH DISJOINT-SET DATA STRUCTURE, by ChatGPT
     def find(node):
         if parent[node] != node:
             parent[node] = find(parent[node])
         return parent[node]
 
-    def union(u, v):
-        pu, pv = find(u), find(v)
-        if pu != pv:
-            parent[pu] = pv
-
-    mst = []    # list(nx.minimum_spanning_edges(G, algorithm='kruskal', data=True))
-    parent = {i: i for i in range(NUM_NODE)}  # initialize parent dictionary
-    for e in e_r:
+    mst = []
+    parent = {i: i for i in range(NUM_NODE)}  # init parent dictionary
+    for e in edges:
         if len(mst) == NUM_NODE - 1:
             break
-        a, b = e.get_city_a(), e.get_city_b()
-        if find(a) != find(b):
-            union(a, b)
+        root_a, root_b = find(e.get_city_a()), find(e.get_city_b())
+        if root_a != root_b:
+            parent[root_a] = root_b
             mst.append(e)
-        # TO BE OPTIMIZED: cost limit check and replacement / early termination
     e_curr = mst.copy()
     cost = sum(e.get_cost() for e in mst)
-    e_rest = [edge for edge in e_r if edge not in mst]
+    e_rest = [e for e in edges if e not in mst]
     r_max = 0
     feasible = sum(e.get_cost() for e in e_curr) <= budget
     while budget - cost >= min([e.cost for e in e_rest]):
@@ -161,7 +145,7 @@ def main():
                 matrix_c.extend(map(int, line.split()))
     for i in range(NUM_NODE):
         for j in range(i + 1, NUM_NODE):
-            idx = i * NUM_NODE - i * (i + 3) // 2 + j - 1  # REF[1]
+            idx = i * NUM_NODE - i * (i + 3) // 2 + j - 1   # or just increment
             e = Edge(i, j)
             e.set_reliability(matrix_r[idx])
             e.set_cost(matrix_c[idx])
@@ -184,7 +168,6 @@ def main():
     # 4. SIMPLE ALGO
     start2 = time.time()
     valid_combs = []
-    # TO BE OPTIMIZED: multiprocessing / range limitation
     pbar = tqdm(total=sum(math.comb(l, i) for i in range(NUM_NODE - 1, l + 1)))
     for k in range(NUM_NODE - 1, l + 1):
         for comb in combinations(e_c, k):
@@ -205,5 +188,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# [1] https://dongkwan-kim.github.io/blogs/indices-for-the-upper-triangle-matrix
