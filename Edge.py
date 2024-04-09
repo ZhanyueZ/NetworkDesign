@@ -1,7 +1,7 @@
 class Edge:
-    def __init__(self, city_a, city_b):
-        self.cityA = city_a
-        self.cityB = city_b
+    def __init__(self, a, b):
+        self.cityA = a
+        self.cityB = b
         self.reliability = 0
         self.cost = 0
 
